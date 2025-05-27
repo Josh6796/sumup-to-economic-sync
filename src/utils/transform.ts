@@ -1,5 +1,5 @@
 import { PayoutSummary } from '../types/payoutSummary';
-import { SumUpPayout } from '../types/sumupPayout';
+import { SumUpPayout } from '../types/sumUpPayout';
 
 export function transformPayoutsToSummaries(
   payouts: SumUpPayout[]

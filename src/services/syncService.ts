@@ -1,7 +1,7 @@
 import { getPayouts } from '../clients/sumupClient';
 import { postJournalEntry, postRefundEntry } from '../clients/economicClient';
 import { logInfo, logError } from '../utils/logger';
-import { SumUpPayout } from '../types/sumupPayout';
+import { SumUpPayout } from '../types/sumUpPayout';
 import { transformPayoutsToSummaries } from '../utils/transform';
 
 export async function syncSumUpPayoutsToEconomic(startDate: string, endDate: string): Promise<void> {
