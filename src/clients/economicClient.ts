@@ -32,7 +32,7 @@ export async function postJournalEntry(date: string, grossAmount: number, feeAmo
         {
           date,
           amount: -grossAmount,
-          text,
+          text: `${text} (gross)`,
           account: {
             accountNumber: revenueAccount,
             self: `${baseURL}/accounts/${revenueAccount}`
@@ -74,13 +74,13 @@ export async function postJournalEntry(date: string, grossAmount: number, feeAmo
         {
           date,
           amount: netAmount,
-          text,
+          text: `${text} (net)`,
           account: {
-            accountNumber: bankAccount, // 5820
+            accountNumber: bankAccount,
             self: `${baseURL}/accounts/${bankAccount}`
           },
           contraAccount: {
-            accountNumber: revenueAccount, // 1010
+            accountNumber: revenueAccount,
             self: `${baseURL}/accounts/${revenueAccount}`
           },
           currency: {
