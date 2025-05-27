@@ -1,0 +1,26 @@
+name: Monthly Sync to e-conomic
+
+on:
+  schedule:
+    - cron: '0 6 10 * *' # Run at 06:00 UTC on the 10th of each month
+  workflow_dispatch:
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    env:
+      SUMUP_API_KEY: ${{ secrets.SUMUP_API_KEY }}
+      ECONOMIC_APP_SECRET: ${{ secrets.ECONOMIC_APP_SECRET }}
+      ECONOMIC_GRANT_TOKEN: ${{ secrets.ECONOMIC_GRANT_TOKEN }}
+      ECONOMIC_ACCOUNT_REVENUE: '1000'
+      ECONOMIC_ACCOUNT_SUMUP: '5820'
+    steps:
+      - uses: actions/checkout@v3
+
+      - uses: actions/setup-node@v3
+        with:
+          node-version: '20'
+
+      - run: npm ci
+
+      - run: npx ts-node src/sync-auto.ts
