@@ -2,7 +2,7 @@ name: Monthly Sync to e-conomic
 
 on:
   schedule:
-    - cron: '0 6 10 * *' # Run at 06:00 UTC on the 10th of each month
+    - cron: '0 21 * * *'  # 21:00 UTC = 22:00 CET/CEST (Denmark time)
   workflow_dispatch:
 
 jobs:
@@ -10,10 +10,15 @@ jobs:
     runs-on: ubuntu-latest
     env:
       SUMUP_API_KEY: ${{ secrets.SUMUP_API_KEY }}
+      SUMUP_MERCHANT_CODE: ${{ secrets.SUMUP_MERCHANT_CODE }}
       ECONOMIC_APP_SECRET: ${{ secrets.ECONOMIC_APP_SECRET }}
       ECONOMIC_GRANT_TOKEN: ${{ secrets.ECONOMIC_GRANT_TOKEN }}
-      ECONOMIC_ACCOUNT_REVENUE: '1000'
-      ECONOMIC_ACCOUNT_SUMUP: '5820'
+      ECONOMIC_ACCOUNT_REVENUE: ${{ secrets.ECONOMIC_ACCOUNT_REVENUE }}
+      ECONOMIC_ACCOUNT_BANK: ${{ secrets.ECONOMIC_ACCOUNT_BANK }}
+      ECONOMIC_ACCOUNT_SUMUP_FEES: ${{ secrets.ECONOMIC_ACCOUNT_SUMUP_FEES }}
+      ECONOMIC_JOURNAL_ID_DAILY_2025: ${{ secrets.ECONOMIC_JOURNAL_ID_DAILY_2025 }}
+      ECONOMIC_VAT_CODE_OUTGOING: ${{ secrets.ECONOMIC_VAT_CODE_OUTGOING }}
+
     steps:
       - uses: actions/checkout@v3
 
