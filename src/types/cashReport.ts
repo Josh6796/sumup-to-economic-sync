@@ -1,0 +1,16 @@
+export interface CashReportRow {
+  dealerId: string;             // "Forhandler-ID"
+  date: string;                 // "Dato"
+  uuid: string;                 // "UUID"
+  number: string | null;        // "Nr."
+  email: string;                // "Email"
+  event: string;                // "Begivenhedsnavn"
+  reason: string | null;        // "Årsag"
+  comment: string | null;       // "Kommentar"
+  income: string | null;        // "Indtægt"
+  expense: string | null;       // "Udgift"
+  balance: string | null;       // "Saldo"
+  expected: string | null;      // "Forventet beløb"
+  difference: string | null;    // "Difference"
+  currency: string;             // "Valuta"
+}

@@ -13,13 +13,21 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@prisma/client": "^6.8.2",
     "axios": "^1.9.0",
+    "cli-progress": "^3.12.0",
+    "csv-parse": "^5.6.0",
     "date-fns": "^4.1.0",
-    "dotenv": "^16.5.0"
+    "dotenv": "^16.5.0",
+    "papaparse": "^5.5.3",
+    "prisma": "^6.8.2",
+    "sqlite3": "^5.1.7"
   },
   "devDependencies": {
+    "@types/cli-progress": "^3.11.6",
     "@types/date-fns": "^2.6.3",
     "@types/node": "^22.15.21",
+    "@types/papaparse": "^5.3.16",
     "@typescript-eslint/eslint-plugin": "^8.32.1",
     "@typescript-eslint/parser": "^8.32.1",
     "eslint": "^9.27.0",
