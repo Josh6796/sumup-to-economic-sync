@@ -1,13 +1,13 @@
 import { parseISO, format } from 'date-fns';
-import { PayoutSummary } from '../types/payoutSummary';
-import { SumUpPayout } from '../types/sumUpPayout';
-import { SumUpTransaction } from '../types/sumUpTransaction';
+import { PayoutSummary } from '../types/sumup/payoutSummary';
+import { Payout } from '../types/sumup/payout';
+import { Transaction } from '../types/sumup/transaction';
 
 /**
  * Transforms SumUp payouts into daily payout summaries.
  */
 export function transformPayoutsToSummaries(
-  payouts: SumUpPayout[]
+  payouts: Payout[]
 ): Record<string, PayoutSummary> {
   const summaries: Record<string, PayoutSummary> = {};
 
@@ -48,7 +48,7 @@ export function transformPayoutsToSummaries(
  * Groups successful CASH transactions by month and returns a summary.
  */
 export function summarizeCashByMonth(
-  transactions: SumUpTransaction[]
+  transactions: Transaction[]
 ): Record<string, number> {
   const result: Record<string, number> = {};
 

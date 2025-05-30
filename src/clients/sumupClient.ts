@@ -1,120 +1,123 @@
 import axios from 'axios';
+import { Transaction } from '../types/sumup/transaction';
+import { TransactionDetails } from '../types/sumup/transactionDetails';
+import { Payout } from '../types/sumup/payout';
 import { logInfo, logError } from '../utils/logger';
-import { SumUpTransaction } from '../types/sumUpTransaction';
-import { SumUpTransactionDetails } from '../types/sumUpTransactionDetails';
-import { SumUpPayout } from '../types/sumUpPayout';
+import { SUMUP } from '../config/credentials';
+import { TransactionStatus } from '../enums/transactionStatus.enum';
+import { PaymentType } from '../enums/paymentType.enum';
+import { TransactionType } from '../enums/transactionType.enum';
+import { TransactionHistoryLink, TransactionHistoryResponse } from '../types/sumup/transactionHistoryResponse';
+import { MemoryCache } from '../utils/cache';
 
-const baseURL = 'https://api.sumup.com';
+export class SumUpClient {
 
-export async function getTransactions(
-  start: string,
-  end: string
-): Promise<SumUpTransaction[]> {
-  const apiKey = process.env.SUMUP_API_KEY;
-  const merchantCode = process.env.SUMUP_MERCHANT_CODE;
+  private readonly baseUrl = 'https://api.sumup.com';
+  private readonly apiKey: string;
+  private readonly merchantCode: string;
+  private readonly transactionPath: string;
+  private readonly payoutPath: string;
+  private readonly transactionsCache: MemoryCache<Transaction[]>;
+  private readonly payoutsCache: MemoryCache<Payout[]>;
 
-  if (!apiKey || !merchantCode) {
-    throw new Error('Missing SUMUP_API_KEY or SUMUP_MERCHANT_CODE in environment');
-  }
+  constructor() {
+    this.apiKey = SUMUP.API_KEY;
+    this.merchantCode = SUMUP.MERCHANT_CODE;
 
-  const allItems: SumUpTransaction[] = [];
-  let url = `${baseURL}/v2.1/merchants/${merchantCode}/transactions/history?oldest_time=${start}&newest_time=${end}&limit=1000`;
-
-  try {
-    logInfo(`Fetching transactions for merchant ${merchantCode} from ${start} to ${end}`);
-
-    let page = 1;
-
-    while (true) {
-      logInfo(`Fetching page ${page} of transactions...`);
-
-      const res = await axios.get(url, {
-        headers: {
-          Authorization: `Bearer ${apiKey}`
-        }
-      });
-
-      const items = res.data.items || [];
-      if (items.length === 0) break;
-
-      allItems.push(...items);
-      process.stdout.write(`\rFetched page ${page}, total transactions: ${allItems.length}`);
-
-      const nextLink = res.data.links?.find((link: any) => link.rel === 'next');
-      if (!nextLink?.href) break;
-
-      url = nextLink.href.startsWith('http')
-        ? nextLink.href
-        : `${baseURL}/v2.1/merchants/${merchantCode}/transactions/history${nextLink.href.startsWith('?') ? '' : '?'}${nextLink.href}`;
-
-      page++;
+    if (!this.apiKey || !this.merchantCode) {
+      throw new Error('Missing SUMUP_API_KEY or SUMUP_MERCHANT_CODE');
     }
 
-    logInfo(`Fetched total ${allItems.length} transactions`);
-    return allItems;
-  } catch (error) {
-    logError('Failed to fetch transactions from SumUp', error);
-    throw error;
-  }
-}
+    this.transactionPath = `/v2.1/merchants/${this.merchantCode}/transactions`;
+    this.payoutPath = `/v1.0/merchants/${this.merchantCode}/payouts`;
 
-
-export async function getPayouts(start: string, end: string): Promise<SumUpPayout[]> {
-  const apiKey = process.env.SUMUP_API_KEY;
-  const merchantCode = process.env.SUMUP_MERCHANT_CODE;
-
-  if (!apiKey || !merchantCode) {
-    throw new Error('Missing SUMUP_API_KEY or SUMUP_MERCHANT_CODE in environment');
+    this.transactionsCache = new MemoryCache<Transaction[]>();
+    this.payoutsCache = new MemoryCache<Payout[]>();
   }
 
-  try {
-    logInfo(`Fetching payouts from ${start} to ${end}`);
-    const res = await axios.get(`${baseURL}/v1.0/merchants/${merchantCode}/payouts`, {
-      headers: {
-        Authorization: 'Bearer ' + apiKey
-      },
-      params: {
-        start_date: start,
-        end_date: end
+  async getTransactions(start: Date, end: Date): Promise<Transaction[]> {
+    const allItems: Transaction[] = [];
+    const key = `${start.toISOString()}_${end.toISOString()}`;
+
+    if (this.transactionsCache.has(key)) {
+      return this.transactionsCache.get(key)!;
+    }
+
+    let url = `${this.baseUrl}${this.transactionPath}/history?oldest_time=${start.toISODateString()}&newest_time=${end.toISODateString()}&limit=1000`;
+
+    let page = 1;
+    try {
+      while (true) {
+        logInfo(`Fetching page ${page} of transactions...`);
+
+        const res = await axios.get<TransactionHistoryResponse>(url, {
+          headers: { Authorization: `Bearer ${this.apiKey}` },
+        });
+
+        const items = res.data.items || [];
+        if (items.length === 0) break;
+
+        allItems.push(...items);
+
+        const nextLink = res.data.links?.find((l: TransactionHistoryLink) => l.rel === 'next');
+        if (!nextLink?.href) break;
+
+        url = nextLink.href.startsWith('http')
+          ? nextLink.href
+          : `${this.baseUrl}${this.transactionPath}/history?${nextLink.href}`;
+
+        page++;
       }
-    });
 
-    return res.data;
-  } catch (error) {
-    logError('Failed to fetch payouts from SumUp', error);
-    throw error;
-  }
-}
-
-export function getSuccessfulCashTransactions(transactions: SumUpTransaction[]) {
-  return transactions.filter(
-    (t) =>
-      t.status === 'SUCCESSFUL' &&
-      t.payment_type === 'CASH' &&
-      t.type === 'PAYMENT'
-  );
-}
-
-export async function getTransactionDetails(transaction: SumUpTransaction): Promise<SumUpTransactionDetails> {
-  const apiKey = process.env.SUMUP_API_KEY;
-  const merchantCode = process.env.SUMUP_MERCHANT_CODE;
-
-  if (!apiKey || !merchantCode) {
-    throw new Error('Missing SUMUP_API_KEY or SUMUP_MERCHANT_CODE in environment');
+      this.transactionsCache.set(key, allItems);
+      return allItems;
+    } catch (error) {
+      logError('Failed to fetch transactions', error);
+      throw error;
+    }
   }
 
-  try {
-    const url = `${baseURL}/v2.1/merchants/${merchantCode}/transactions?id=${transaction.transaction_id}`;
-    const res = await axios.get(url, {
-      headers: {
-        Authorization: `Bearer ${apiKey}`
-      }
-    });
+  async getTransactionDetails(id: string): Promise<TransactionDetails> {
+    const url = `${this.baseUrl}${this.transactionPath}?id=${id}`;
+    try {
+      const res = await axios.get<TransactionDetails>(url, {
+        headers: { Authorization: `Bearer ${this.apiKey}` }
+      });
+      return res.data;
+    } catch (error) {
+      logError(`Failed to fetch details for ID ${id}`, error);
+      throw error;
+    }
+  }
 
-    return res.data;
-  } catch (error) {
-    logError(`Failed to fetch transaction details for ID ${transaction.transaction_id}`, error);
-    throw error;
+  async getPayouts(start: Date, end: Date): Promise<Payout[]> {
+
+    const key = `${start.toISOString()}_${end.toISOString()}`;
+
+    if (this.payoutsCache.has(key)) {
+      return this.payoutsCache.get(key)!;
+    }
+
+    try {
+      const res = await axios.get<Payout[]>(`${this.baseUrl}${this.payoutPath}`, {
+        headers: { Authorization: `Bearer ${this.apiKey}` },
+        params: { start_date: start.toISODateString(), end_date: end.toISODateString() }
+      });
+
+      this.payoutsCache.set(key, res.data);
+      return res.data;
+    } catch (error) {
+      logError('Failed to fetch payouts', error);
+      throw error;
+    }
+  }
+
+  getSuccessfulCashTransactions(transactions: Transaction[]): Transaction[] {
+    return transactions.filter(
+      t =>
+        t.status === TransactionStatus.Successful &&
+        t.payment_type === PaymentType.Cash &&
+        t.type === TransactionType.Payment
+    );
   }
 }
-
