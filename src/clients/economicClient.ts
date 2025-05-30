@@ -4,9 +4,10 @@ import { logInfo, logError } from '../utils/logger';
 const baseURL = 'https://restapi.e-conomic.com';
 const revenueAccount = Number(process.env.ECONOMIC_ACCOUNT_REVENUE!);
 const bankAccount = Number(process.env.ECONOMIC_ACCOUNT_BANK!);
+const cashAccount = Number(process.env.ECONOMIC_ACCOUNT_CASH_REGISTER!);
 const feesAccount = Number(process.env.ECONOMIC_ACCOUNT_SUMUP_FEES!);
 const journalId = process.env.ECONOMIC_JOURNAL_ID_DAILY_2025!;
-const vatAccount = process.env.ECONOMIC_VAT_CODE_OUTGOING!;
+const vatAccountOut = process.env.ECONOMIC_VAT_CODE_OUTGOING!;
 
 const headers = {
   'X-AppSecretToken': process.env.ECONOMIC_APP_SECRET!,
@@ -37,13 +38,9 @@ export async function postJournalEntry(date: string, grossAmount: number, feeAmo
             accountNumber: revenueAccount,
             self: `${baseURL}/accounts/${revenueAccount}`
           },
-          contraAccount: {
-            accountNumber: bankAccount,
-            self: `${baseURL}/accounts/${bankAccount}`
-          },
           vatAccount: {
-            vatCode: vatAccount,
-            self: `${baseURL}/vat-accounts/${vatAccount}`
+            vatCode: vatAccountOut,
+            self: `${baseURL}/vat-accounts/${vatAccountOut}`
           },
           currency: {
             code: 'DKK',
@@ -60,10 +57,6 @@ export async function postJournalEntry(date: string, grossAmount: number, feeAmo
             accountNumber: feesAccount,
             self: `${baseURL}/accounts/${feesAccount}`
           },
-          contraAccount: {
-            accountNumber: bankAccount,
-            self: `${baseURL}/accounts/${bankAccount}`
-          },
           currency: {
             code: 'DKK',
             self: `${baseURL}/currencies/DKK`
@@ -78,10 +71,6 @@ export async function postJournalEntry(date: string, grossAmount: number, feeAmo
           account: {
             accountNumber: bankAccount,
             self: `${baseURL}/accounts/${bankAccount}`
-          },
-          contraAccount: {
-            accountNumber: revenueAccount,
-            self: `${baseURL}/accounts/${revenueAccount}`
           },
           currency: {
             code: 'DKK',
@@ -123,13 +112,9 @@ export async function postRefundEntry(date: string, refundAmount: number) {
             accountNumber: revenueAccount,
             self: `${baseURL}/accounts/${revenueAccount}`
           },
-          contraAccount: {
-            accountNumber: bankAccount,
-            self: `${baseURL}/accounts/${bankAccount}`
-          },
           vatAccount: {
-            vatCode: vatAccount,
-            self: `${baseURL}/vat-accounts/${vatAccount}`
+            vatCode: vatAccountOut,
+            self: `${baseURL}/vat-accounts/${vatAccountOut}`
           },
           currency: {
             code: 'DKK',
@@ -146,6 +131,58 @@ export async function postRefundEntry(date: string, refundAmount: number) {
     return res.data;
   } catch (error) {
     logError(`Failed to post refund journal entry for ${date}`, error);
+    throw error;
+  }
+}
+
+export async function postMonthlyCashRevenue(month: string, amount: number) {
+  const date = `${month}-01`;
+
+  const payload = {
+    accountingYear: {
+      year: date.slice(0, 4)
+    },
+    journal: {
+      journalNumber: Number(journalId),
+      self: `${baseURL}/journals/${journalId}`
+    },
+    entries: {
+      financeVouchers: [
+        {
+          date,
+          amount: -amount,
+          text: `Cash sales for ${month}`,
+          account: {
+            accountNumber: revenueAccount,
+            self: `${baseURL}/accounts/${revenueAccount}`
+          },
+          contraAccount: {
+            accountNumber: cashAccount,
+            self: `${baseURL}/accounts/${cashAccount}`
+          },
+          vatAccount: {
+            vatCode: vatAccountOut,
+            self: `${baseURL}/vat-accounts/${vatAccountOut}`
+          },
+          currency: {
+            code: 'DKK',
+            self: `${baseURL}/currencies/DKK`
+          }
+        }
+      ]
+    }
+  };
+
+  try {
+    const response = await axios.post(
+      `${baseURL}/journals/${journalId}/vouchers`,
+      payload,
+      { headers }
+    );
+    console.log(`Posted cash revenue for ${month}: ${amount} DKK`);
+    return response.data;
+  } catch (error) {
+    console.error(`Failed to post cash revenue for ${month}`, error);
     throw error;
   }
 }

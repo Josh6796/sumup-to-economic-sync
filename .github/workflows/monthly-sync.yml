@@ -28,4 +28,4 @@ jobs:
 
       - run: npm ci
 
-      - run: npx ts-node src/sync-auto.ts
+      - run: npx ts-node src/syncAuto.ts
