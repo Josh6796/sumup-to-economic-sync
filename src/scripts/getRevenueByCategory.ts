@@ -1,8 +1,8 @@
-// sync.ts or sync-auto.ts
 import dotenv from 'dotenv';
-import { getRevenueByCategory } from '../services/sumUpService';
-import { logInfo } from '../utils/logger';
 dotenv.config();
+
+import { SumUpClient, SumUpService } from '..';
+import { logInfo } from '../utils/logger';
 
 
 function parseDateArgs(): [string, string, string] {
@@ -14,7 +14,17 @@ function parseDateArgs(): [string, string, string] {
 }
 
 (async () => {
-    const [start, end, category] = parseDateArgs();
-    const revenue = await getRevenueByCategory(start, end, category)
+    const sumUpClient = new SumUpClient();
+    const sumUpService = new SumUpService(sumUpClient);
+
+    const [startStr, endStr, category] = parseDateArgs();
+
+    const startDate = new Date(startStr);
+    const endDate = new Date(endStr);
+
+    if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+        throw new Error('Invalid start or end date');
+    }
+    const revenue = await sumUpService.getRevenueByCategory(startDate, endDate, category)
     logInfo("Revenue: " + revenue + ' DKK')
 })();

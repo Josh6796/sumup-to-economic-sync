@@ -1,4 +1,4 @@
-export interface SumUpTransactionDetails {
+export interface TransactionDetails {
   id: string;
   amount: number;
   currency: string;

@@ -1,188 +1,166 @@
 import axios from 'axios';
 import { logInfo, logError } from '../utils/logger';
+import { ACCOUNTING } from '../config/accountingConfig';
+import { ECONOMIC } from '../config/credentials';
+import { EconomicVoucherResponseArray } from '../types/economic/voucherResponse';
+import { VoucherRequest, FinanceVoucherEntry } from '../types/economic/voucherRequest';
+import { RevenueType } from '../enums/revenueType.enum';
 
-const baseURL = 'https://restapi.e-conomic.com';
-const revenueAccount = Number(process.env.ECONOMIC_ACCOUNT_REVENUE!);
-const bankAccount = Number(process.env.ECONOMIC_ACCOUNT_BANK!);
-const cashAccount = Number(process.env.ECONOMIC_ACCOUNT_CASH_REGISTER!);
-const feesAccount = Number(process.env.ECONOMIC_ACCOUNT_SUMUP_FEES!);
-const journalId = process.env.ECONOMIC_JOURNAL_ID_DAILY_2025!;
-const vatAccountOut = process.env.ECONOMIC_VAT_CODE_OUTGOING!;
-
-const headers = {
-  'X-AppSecretToken': process.env.ECONOMIC_APP_SECRET!,
-  'X-AgreementGrantToken': process.env.ECONOMIC_GRANT_TOKEN!,
-  'Content-Type': 'application/json'
-};
-
-export async function postJournalEntry(date: string, grossAmount: number, feeAmount: number) {
-  const netAmount = +(grossAmount - feeAmount).toFixed(2);
-  const text = `SumUp payout for ${date}`;
-
-  const payload = {
-    accountingYear: {
-      year: date.slice(0, 4)
-    },
-    journal: {
-      journalNumber: Number(journalId),
-      self: `${baseURL}/journals/${journalId}`
-    },
-    entries: {
-      financeVouchers: [
-        // Line 1: Revenue (with VAT)
-        {
-          date,
-          amount: -grossAmount,
-          text: `${text} (gross)`,
-          account: {
-            accountNumber: revenueAccount,
-            self: `${baseURL}/accounts/${revenueAccount}`
-          },
-          vatAccount: {
-            vatCode: vatAccountOut,
-            self: `${baseURL}/vat-accounts/${vatAccountOut}`
-          },
-          currency: {
-            code: 'DKK',
-            self: `${baseURL}/currencies/DKK`
-          }
-        },
-
-        // Line 2: SumUp fee (no VAT)
-        {
-          date,
-          amount: feeAmount,
-          text: `${text} (fee)`,
-          account: {
-            accountNumber: feesAccount,
-            self: `${baseURL}/accounts/${feesAccount}`
-          },
-          currency: {
-            code: 'DKK',
-            self: `${baseURL}/currencies/DKK`
-          }
-        },
-
-        // Line 3: Bank receipt (net)
-        {
-          date,
-          amount: netAmount,
-          text: `${text} (net)`,
-          account: {
-            accountNumber: bankAccount,
-            self: `${baseURL}/accounts/${bankAccount}`
-          },
-          currency: {
-            code: 'DKK',
-            self: `${baseURL}/currencies/DKK`
-          }
-        }
-      ]
-    }
+export class EconomicClient {
+  private readonly baseURL = 'https://restapi.e-conomic.com';
+  private readonly headers = {
+    'X-AppSecretToken': ECONOMIC.APP_SECRET,
+    'X-AgreementGrantToken': ECONOMIC.GRANT_TOKEN,
+    'Content-Type': 'application/json'
   };
 
-  try {
-    const res = await axios.post(`${baseURL}/journals/${journalId}/vouchers`, payload, { headers });
-    logInfo(`Posted 3-line journal voucher for ${date}`);
-    return res.data;
-  } catch (error) {
-    logError(`Failed to post journal voucher for ${date}`, error);
-    throw error;
+  private readonly revenueAccount: number;
+  private readonly bankAccount: number;
+  private readonly cashAccount: number;
+  private readonly feesAccount: number;
+  private readonly journalId: number;
+  private readonly vatAccountOut: string;
+  private readonly clearingAccount: number;
+
+  constructor() {
+    this.revenueAccount = ACCOUNTING.REVENUE;
+    this.bankAccount = ACCOUNTING.BANK;
+    this.cashAccount = ACCOUNTING.CASH;
+    this.feesAccount = ACCOUNTING.FEES;
+    this.journalId = ACCOUNTING.JOURNAL_ID;
+    this.vatAccountOut = ACCOUNTING.VAT_OUT;
+    this.clearingAccount = ACCOUNTING.CLEARING;
   }
-}
 
-export async function postRefundEntry(date: string, refundAmount: number) {
-  const text = `SumUp refund for ${date}`;
+  async postPayoutEntry(date: string, clearingAmount: number, netAmount: number, feeAmount: number) {
 
-  const payload = {
-    accountingYear: {
-      year: date.slice(0, 4)
-    },
-    journal: {
-      journalNumber: Number(journalId),
-      self: `${baseURL}/journals/${journalId}`
-    },
-    entries: {
-      financeVouchers: [
-        {
-          date,
-          amount: -refundAmount,
-          text,
-          account: {
-            accountNumber: revenueAccount,
-            self: `${baseURL}/accounts/${revenueAccount}`
-          },
-          vatAccount: {
-            vatCode: vatAccountOut,
-            self: `${baseURL}/vat-accounts/${vatAccountOut}`
-          },
-          currency: {
-            code: 'DKK',
-            self: `${baseURL}/currencies/DKK`
-          }
-        }
-      ]
-    }
-  };
+    const text = `Daily payout for ${date}`;
 
-  try {
-    const res = await axios.post(`${baseURL}/journals/${journalId}/vouchers`, payload, { headers });
-    logInfo(`Posted refund journal entry for ${date}`);
-    return res.data;
-  } catch (error) {
-    logError(`Failed to post refund journal entry for ${date}`, error);
-    throw error;
+    const entries: FinanceVoucherEntry[] = [
+      {
+        date,
+        amount: -clearingAmount,
+        text: `${text} (clearing)`,
+        account: this.buildAccountRef(this.clearingAccount),
+        currency: this.buildCurrencyRef()
+      },
+      {
+        date,
+        amount: feeAmount,
+        text: `${text} (fee)`,
+        account: this.buildAccountRef(this.feesAccount),
+        currency: this.buildCurrencyRef()
+      },
+      {
+        date,
+        amount: netAmount,
+        text: `${text} (net)`,
+        account: this.buildAccountRef(this.bankAccount),
+        currency: this.buildCurrencyRef()
+      }
+    ];
+
+    const payload = this.buildVoucherPayload(date, entries);
+    return this.postVoucher(payload, `3-line journal voucher for ${date}`)
   }
-}
 
-export async function postMonthlyCashRevenue(month: string, amount: number) {
-  const date = `${month}-01`;
+  async postMonthlyCashRevenue(month: string, amount: number) {
 
-  const payload = {
-    accountingYear: {
-      year: date.slice(0, 4)
-    },
-    journal: {
-      journalNumber: Number(journalId),
-      self: `${baseURL}/journals/${journalId}`
-    },
-    entries: {
-      financeVouchers: [
-        {
-          date,
-          amount: -amount,
-          text: `Cash sales for ${month}`,
-          account: {
-            accountNumber: revenueAccount,
-            self: `${baseURL}/accounts/${revenueAccount}`
-          },
-          contraAccount: {
-            accountNumber: cashAccount,
-            self: `${baseURL}/accounts/${cashAccount}`
-          },
-          vatAccount: {
-            vatCode: vatAccountOut,
-            self: `${baseURL}/vat-accounts/${vatAccountOut}`
-          },
-          currency: {
-            code: 'DKK',
-            self: `${baseURL}/currencies/DKK`
-          }
-        }
-      ]
+    const date = `${month}-01`;
+    const entries: FinanceVoucherEntry[] = [
+      {
+        date,
+        amount: -amount,
+        text: `Monthly cash sales for ${month}`,
+        account: this.buildAccountRef(this.revenueAccount),
+        contraAccount: this.buildAccountRef(this.cashAccount),
+        vatAccount: this.buildVatAccountRef(this.vatAccountOut),
+        currency: this.buildCurrencyRef()
+      }
+    ];
+
+    const payload = this.buildVoucherPayload(date, entries);
+    return this.postVoucher(payload, `cash revenue for ${month}: ${amount} DKK`)
+  }
+
+  async postDailyRevenueEntry(date: string, grossAmount: number, contraAccount: number, revenueType: RevenueType) {
+    const text = `Daily ${revenueType}-revenue for ${date}`;
+
+    const entries: FinanceVoucherEntry[] = [
+      {
+        date,
+        amount: -grossAmount,
+        text: text,
+        account: this.buildAccountRef(this.revenueAccount),
+        contraAccount: this.buildAccountRef(contraAccount),
+        vatAccount: this.buildVatAccountRef(this.vatAccountOut),
+        currency: this.buildCurrencyRef()
+      }
+    ];
+
+    const payload = this.buildVoucherPayload(date, entries);
+    return this.postVoucher(payload, `daily revenue for ${date}: ${grossAmount} DKK`);
+  }
+
+  async postDailyRefundEntry(date: string, refundAmount: number, contraAccount: number, revenueType: RevenueType) {
+
+    const text = `Daily ${revenueType}-refunds for ${date}`;
+    const entries: FinanceVoucherEntry[] = [
+
+      {
+        date,
+        amount: refundAmount,
+        text,
+        account: this.buildAccountRef(this.revenueAccount),
+        contraAccount: this.buildAccountRef(contraAccount),
+        vatAccount: this.buildVatAccountRef(this.vatAccountOut),
+        currency: this.buildCurrencyRef()
+      }
+    ];
+
+    const payload = this.buildVoucherPayload(date, entries);
+    return this.postVoucher(payload, `refund journal entry for ${date}`)
+  }
+
+  // Private Functions
+
+  private async postVoucher(payload: VoucherRequest, label: string): Promise<EconomicVoucherResponseArray> {
+    try {
+      const res = await axios.post<EconomicVoucherResponseArray>(
+        `${this.baseURL}/journals/${this.journalId}/vouchers`,
+        payload,
+        { headers: this.headers }
+      );
+      logInfo(`Posted ${label}`);
+      return res.data;
+    } catch (error) {
+      logError(`Failed to post ${label}`, error);
+      throw error;
     }
-  };
+  }
 
-  try {
-    const response = await axios.post(
-      `${baseURL}/journals/${journalId}/vouchers`,
-      payload,
-      { headers }
-    );
-    console.log(`Posted cash revenue for ${month}: ${amount} DKK`);
-    return response.data;
-  } catch (error) {
-    console.error(`Failed to post cash revenue for ${month}`, error);
-    throw error;
+  private buildVoucherPayload(date: string, entries: FinanceVoucherEntry[]): VoucherRequest {
+    return {
+      accountingYear: { year: date.slice(0, 4) },
+      journal: {
+        journalNumber: this.journalId,
+        self: `${this.baseURL}/journals/${this.journalId}`
+      },
+      entries: {
+        financeVouchers: entries
+      }
+    };
+  }
+
+  private buildAccountRef(accountNumber: number) {
+    return { accountNumber, self: `${this.baseURL}/accounts/${accountNumber}` };
+  }
+
+  private buildVatAccountRef(vatCode: string) {
+    return { vatCode, self: `${this.baseURL}/vat-accounts/${vatCode}` };
+  }
+
+  private buildCurrencyRef() {
+    return { code: 'DKK', self: `${this.baseURL}/currencies/DKK` };
   }
 }
