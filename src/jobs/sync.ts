@@ -24,6 +24,4 @@ function parseDateArgs(): [string, string] {
   if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
     throw new Error('Invalid start or end date');
   }
-
-  await syncService.syncPayoutsToEconomic(startDate, endDate);
 })();

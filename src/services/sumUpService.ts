@@ -1,6 +1,6 @@
 import { Transaction } from '../types/sumup/transaction';
 import { TransactionDetails } from '../types/sumup/transactionDetails';
-import { resolveCategoryFromTransactionProduct } from '../domain/products/categoryResolver';
+import { resolveCategoryFromTransactionProductByCategory } from '../domain/products/categoryResolver';
 import cliProgress from 'cli-progress';
 import { logInfo, logError } from '../utils/logger';
 import { SumUpClient } from '../index';
@@ -33,15 +33,15 @@ export class SumUpService {
 
                 if (transactionDetails.products) {
                     for (const product of transactionDetails.products) {
-                        const resolvedCategory = await resolveCategoryFromTransactionProduct({
-                            name: product.name,
-                            description: product.description,
-                            price_with_vat: product.price_with_vat,
+                        const resolvedCategory = await resolveCategoryFromTransactionProductByCategory({
+                            name: product.name ?? '',
+                            description: product.description ?? '',
+                            price_with_vat: product.price_with_vat ?? 0,
                             category
                         });
 
                         if (resolvedCategory === category) {
-                            revenue += product.total_with_vat;
+                            revenue += product.total_with_vat ?? 0;
                             uniqueTransactions.add(transaction.id);
                         }
                     }

@@ -1,5 +1,3 @@
-// src/types/sumUpPayout.d.ts
-
 import { PayoutType } from "../../enums/payoutType.enum";
 import { TransactionStatus } from "../../enums/transactionStatus.enum";
 
