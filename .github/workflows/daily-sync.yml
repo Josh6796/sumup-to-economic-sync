@@ -2,7 +2,7 @@ name: SumUp to e-conomic Daily Sync
 
 on:
   schedule:
-    - cron: '0 20 * * *' # Every day at 20:00 UTC (22:00 in Denmark during DST)
+    - cron: '0 23 * * *' # Every day at 23:00 UTC (01:00 in Denmark during DST)
   workflow_dispatch:
 
 jobs:
