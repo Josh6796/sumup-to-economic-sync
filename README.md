@@ -1,6 +1,6 @@
-# SumUp to e-conomic Integration
+# Høst Bageri Integrations
 
-This project synchronizes transaction and payout data from [SumUp](https://sumup.com/) to [e-conomic](https://www.e-conomic.com/) for accounting automation. It fetches transactions and payouts from SumUp, processes and summarizes them, and posts the relevant journal entries to e-conomic.
+This project provides integrations for automating accounting and reporting for Høst Bageri, synchronizing transaction and payout data from [SumUp](https://sumup.com/) to [e-conomic](https://www.e-conomic.com/). It fetches transactions and payouts from SumUp, processes and summarizes them, and posts the relevant journal entries to e-conomic, tailored for bakery operations.
 
 ## Features
 
@@ -8,7 +8,7 @@ This project synchronizes transaction and payout data from [SumUp](https://sumup
 - Summarizes daily and monthly revenue, cash, and refunds
 - Posts journal entries to e-conomic via API
 - Imports product and transaction data into a local SQLite database using Prisma
-- Supports category-based revenue reporting
+- Supports category-based revenue reporting for bakery products
 
 ## Project Structure
 
