@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Høst Bageri Integrations
 
 This project provides integrations for automating accounting and reporting for Høst Bageri, synchronizing transaction and payout data from [SumUp](https://sumup.com/) to [e-conomic](https://www.e-conomic.com/). It fetches transactions and payouts from SumUp, processes and summarizes them, and posts the relevant journal entries to e-conomic, tailored for bakery operations.
@@ -106,3 +107,7 @@ ISC
 ---
 
 **Note:** This project is not affiliated with SumUp or e-conomic. Use at your own risk.
+=======
+# sumup-to-economic-sync
+Syncs daily revenue, payouts, fees, refunds and cash revenue from SumUp to e-conomic
+>>>>>>> f5386da40c275ba3d0e8de755605acc6b6a7910e
